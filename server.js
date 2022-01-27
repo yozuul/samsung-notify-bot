@@ -2,13 +2,13 @@ import {} from 'dotenv/config'
 import express from 'express'
 import { darkGray, red } from 'ansicolor'
 
-import { botStart } from './bot'
-import { Parser } from './parser/parser'
 import { ProductWatcher } from './parser/watcher'
+import { botStart } from './bot/bot'
 
 const PORT = process.env.API_PORT
-const botCommand = await botStart()
 const watcher = new ProductWatcher()
+const botCommand = botStart()
+
 
 const startServer = async () => {
    const app = express()
@@ -50,6 +50,5 @@ const startServer = async () => {
 
 startServer()
 
-const someURL = 'https://www.samsung.com/ru/smartphones/galaxy-s21-5g/buy/'
-const someURL2 = 'https://www.samsung.com/ru/tablets/galaxy-tab-s7/buy/'
-new Parser().urlChecker(someURL)
+// const someURL = 'https://www.samsung.com/ru/smartphones/galaxy-s21-5g/buy/'
+// new Parser().urlChecker(someURL2)

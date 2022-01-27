@@ -1,6 +1,10 @@
 import axios from 'axios'
 import { UserController, ProductController } from '../controllers'
 import { Parser } from '../parser/parser'
+import { MenuKeyboards } from './keyboards'
+
+const keyboard = new MenuKeyboards()
+const parser = new Parser()
 
 export class MainMenu {
    constructor(bot) {
@@ -8,9 +12,37 @@ export class MainMenu {
       this.user = {}
    }
 
+   async searchProducts(chat_id, url) {
+      this.bot.sendMessage(chat_id, 'Поиск товаров по указанной ссылке')
+      await this.checkUserExist(chat_id)
+      this.user[chat_id].parseProduct = true
+      await parser.urlChecker(url)
+   }
+   async getProductList(chat_id) {
+      await this.checkInit(chat_id)
+      const products = await ProductController.getAllProducts()
+      const productsListMenu = keyboard.existProducts(products)
+      const msg = await this.bot.sendMessage(chat_id, '<pre>МОИ ТОВАРЫ:</pre>', {
+         reply_markup: JSON.stringify({
+            inline_keyboard: productsListMenu
+         }), parse_mode: 'HTML'
+      })
+      this.user[chat_id].menu[msg.message_id] = productsListMenu
+   }
+
+   async deleteProduct(device, storage, chat_id, message_id) {
+      const products = await ProductController.deleteProduct({
+         device: device, storage: storage
+      })
+      await this.editKeyboard(
+         '<pre>МОИ ТОВАРЫ:</pre>', chat_id, message_id, keyboard.existProducts(products)
+      )
+   }
+
    async sendNotify(data) {
+      const { url, device, storage, colors } = data
       const authUsers = await UserController.getAllUsers()
-      const message = `ПОСТУПЛЕНИЕ ТОВАРА:\n${data.url}\nМодель: ${data.device}\nПамять: ${data.storage}\nРасцветки:\n${data.colors}`
+      const message = `ПОСТУПЛЕНИЕ ТОВАРА:\n${url}\nМодель: ${device}\nПамять: ${storage}\nРасцветки:\n${colors}`
       for (let user of authUsers) {
          try {
             await this.bot.sendMessage(user.tg_id, message, {
@@ -21,22 +53,33 @@ export class MainMenu {
             console.log('ERROR SEND NOTIFY ^')
          }
       }
+      ProductController.deleteProduct({
+         device: device, storage: storage
+      })
    }
 
    async sendProducts(data) {
-      const tgID = 1884297416
-      this.checkUserExist(tgID)
+      let tgID = 11111111
+      console.log(this.user)
+      for (let user in this.user) {
+         if(this.user[user].parseProduct) {
+            this.user[user].parseProduct = false
+            tgID = user
+         }
+      }
       const parsedData = data[0]
       const url = data[1]
-      const mainTitle = `<pre>ТОВАР</pre>\n${url}`
+      const mainTitle = `<pre>ПОДПИСКА НА ТОВАРЫ:</pre>\n${url}`
       try {
-         await this.bot.sendMessage(tgID, mainTitle, { parse_mode: 'HTML' })
+         await this.bot.sendMessage(tgID, mainTitle, {
+            parse_mode: 'HTML', disable_web_page_preview: true
+         })
          for (let product of parsedData) {
             const deviceName = product.device
             const prodTitle = `<b>${deviceName}</b>`
             const msg = await this.bot.sendMessage(tgID, prodTitle, {
                reply_markup: JSON.stringify({
-                  inline_keyboard: this.prepareProductsKeyboard(deviceName, product.storage)
+                  inline_keyboard: keyboard.parsedProducts(deviceName, product.storage)
                }), parse_mode: 'HTML'
             })
             this.user[tgID].menu[msg.message_id] = {
@@ -49,42 +92,6 @@ export class MainMenu {
       } catch (error) {
          console.log(error)
       }
-   }
-
-   prepareProductsKeyboard(device, storages) {
-      const storageKeyboard = []
-      let rows = []
-      const itemsCount = Object.keys(storages).length
-      let indexRows = 0
-      let indexCount = 0
-      for (let item in storages) {
-         const checkbox = storages[item] ? '✅' : ''
-         rows.push({
-            text: `${checkbox} ${item}`,
-            callback_data: `~${device}|${item}`,
-         })
-         indexRows++
-         indexCount++
-         if(indexRows === 2) {
-            storageKeyboard.push(rows)
-            rows = []
-            indexRows = 0
-         }
-         if(indexCount === itemsCount) {
-            if(rows.length > 0) storageKeyboard.push(rows)
-         }
-      }
-      return storageKeyboard
-   }
-
-   checkMessageExist(chat_id, query_id, message_id) {
-      if(this.user[chat_id]) {
-         if(!this.user[chat_id].menu[message_id]) {
-            this.bot.answerCallbackQuery(query_id, { text: 'Сообщение устарело' })
-            return false
-         }
-      }
-      return true
    }
 
    async toggleProduct(device, storage, chat_id, message_id, query_id) {
@@ -111,15 +118,13 @@ export class MainMenu {
          axios.post('http://localhost:3000/watchProduct', data)
       }
       try {
-         await this.bot.editMessageText(this.user[chat_id].menu[message_id].title, {
-            chat_id: chat_id,
-            message_id: message_id,
-            reply_markup: JSON.stringify({
-               inline_keyboard: this.prepareProductsKeyboard(
-                  device, this.user[chat_id].menu[message_id].state[menuItemIndex].storage
-               )
-            }), parse_mode: 'HTML'
-         })
+         await this.editKeyboard(
+            this.user[chat_id].menu[message_id].title,
+            chat_id, message_id,
+            keyboard.parsedProducts(
+               device, this.user[chat_id].menu[message_id].state[menuItemIndex].storage
+            )
+         )
          return
       } catch (error) {
          console.log(error)
@@ -211,7 +216,7 @@ export class MainMenu {
    }
 
    async existPhonesKeyboard() {
-      const users = await UserController.getAllUsers()
+      const users = await UserController.getAuthUsers()
       const phonesKeyboard = []
       let keyboardRow = []
       for(let user of users) {
@@ -232,9 +237,31 @@ export class MainMenu {
       if(!this.user[chat_id]) this.initNavigation(chat_id)
    }
    async initNavigation(chat_id) {
-      this.user[chat_id] = { currentPath: '/' }
+      this.user[chat_id] = {
+         menu: {},
+         currentPath: '/'
+      }
    }
    checkUserExist(tgID) {
       if(!this.user[tgID]) this.user[tgID] = { menu: {} }
+   }
+   checkMessageExist(chat_id, query_id, message_id) {
+      if(this.user[chat_id]) {
+         if(!this.user[chat_id].menu[message_id]) {
+            this.bot.answerCallbackQuery(query_id, { text: 'Сообщение устарело' })
+            return false
+         }
+      }
+      return true
+   }
+
+   async editKeyboard(title, chat_id, message_id, keyboard) {
+      await this.bot.editMessageText(title, {
+         chat_id: chat_id,
+         message_id: message_id,
+         reply_markup: JSON.stringify({
+            inline_keyboard: keyboard
+         }), parse_mode: 'HTML'
+      })
    }
 }

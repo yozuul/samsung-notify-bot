@@ -1,11 +1,11 @@
-import EventEmitter from 'events'
+import { setMaxListeners } from 'events'
 import axios from 'axios'
 import { darkGray, red, green } from 'ansicolor'
 
 import { Parser } from './parser'
+import { ProductController } from '../controllers'
 
-const emitter = new EventEmitter()
-emitter.setMaxListeners(100)
+setMaxListeners(100)
 
 export class ProductWatcher {
 	constructor() {
@@ -13,19 +13,19 @@ export class ProductWatcher {
 	}
 
 	async reCheckProducts() {
-		console.log(this.pages)
-		for (let device in this.pages) {
-			const deviceStorages = this.pages[device]
-			for (let storage in deviceStorages) {
-				const pageData = deviceStorages[storage]
-				if(pageData.status === 'closed') {
-					const { url } = pageData
-					this.pages[device][storage].status === 'loading'
-					this.pages[device][storage].page = await new Parser().openPage(url)
-					this.pages[device][storage].status = 'loaded'
-					this.checkProduct(url, device, storage)
-				}
-			}
+      const products = await ProductController.getAllProducts()
+		if(!products) {
+			this.pages = {}
+			return
+		}
+		for (let product of products) {
+			const { device, storage, url } = product
+			if(!this.pages[device]) this.pages[device] = {}
+			if(!this.pages[device][storage]) this.pages[device][storage] = {}
+			this.pages[device][storage].status === 'loading'
+			this.pages[device][storage].page = await new Parser().openPage(url)
+			this.pages[device][storage].status = 'loaded'
+			this.checkProduct(url, device, storage)
 		}
 	}
 
@@ -34,7 +34,7 @@ export class ProductWatcher {
 
 		// Клик по инпуту DEVICE
 		const clickDeviceOption = async () => await page.evaluate((device) => {
-			const deviceOptions = document.querySelectorAll('.s-option-device input')
+			const deviceOptions = document.querySelectorAll('#device input')
 			for (let inputDevice of deviceOptions) {
 				if(inputDevice.getAttribute('data-englishname') === device) inputDevice.click()
 			}
@@ -43,12 +43,17 @@ export class ProductWatcher {
 		// Клик по инпуту STORAGE
 		const clickStorageOption = async () => await page.evaluate((storage) => {
 			let hasAttributeFlag = false
-			const storageOptions = document.querySelectorAll('.s-option-storage input')
+			const storageOptions = document.querySelectorAll('#storage .s-rdo-text')
 			for (let inputStorage of storageOptions) {
-				if(inputStorage.getAttribute('data-displayname') === storage) {
-					hasAttributeFlag = true
-					inputStorage.click()
-				}
+				if(inputStorage.innerText === storage) inputStorage.classList.add('storageFounded')
+			}
+			const checkPrice = document.querySelector('.storageFounded + .s-rdo-price')
+			// console.log(checkPrice)
+			if(checkPrice.innerText) {
+				hasAttributeFlag = true
+				const activeInput = document.querySelector('.storageFounded')
+				const parentLabel = activeInput.parentNode.parentNode.parentNode
+				parentLabel.click()
 			}
 			return hasAttributeFlag
 		}, storage)
@@ -71,8 +76,6 @@ export class ProductWatcher {
 				for (let block of availableColorsBlocks) {
 					let colorName = block.getAttribute('data-displayname')
 					availableColors += `- ${colorName}\n`
-					// console.log(block.getAttribute('data-displayname'))
-					// availableColors.push(block.getAttribute('data-displayname'))
 				}
 				return availableColors
 			}
@@ -85,8 +88,7 @@ export class ProductWatcher {
 			await clickDeviceOption()
 			await page.waitForTimeout(1000)
 		} catch (error) {
-			console.log(error)
-			console.log('clickDeviceOption ERROR ^')
+			console.log(('Страница закрыта: clickDeviceOption').darkGray)
 		}
 		// Клик по инпуту STORAGE
 		try {
@@ -108,7 +110,8 @@ export class ProductWatcher {
 					console.log(('НЕТ В НАЛИЧИИ:').red, (`${device} ~ ${storage}`).darkGray)
 				} else {
 					console.log(('ПОЯВИЛСЯ ТОВАР:').green, (`${device} ~ ${storage}`).darkGray)
-					console.log(('Расцветки:').darkGray, colors)
+					console.log(('Расцветки:\n' + colors).darkGray)
+					this.unWatch({device, storage})
 					axios.post('http://localhost:3000/sendNotify', {
 						url: url,
 						device: device,
@@ -122,41 +125,48 @@ export class ProductWatcher {
 			await closePage()
 			return
 		} catch (error) {
-			console.log(error)
-			console.log('clickStorageOption ERROR ^')
+			console.log(('Страница закрыта: clickStorageOption').darkGray)
 		}
 	}
 
 	async watch(data) {
-		const { url, device, storage } = data
-		if(!this.pages[device]) this.pages[device] = {}
-		if(!this.pages[device][storage]) this.pages[device][storage] = {
-			url: url,
-			page: false,
-			status: 'loading',
-			delete: false
+		try {
+			const { url, device, storage } = data
+			if(!this.pages[device]) this.pages[device] = {}
+			if(!this.pages[device][storage]) this.pages[device][storage] = {
+				url: url,
+				page: false,
+				status: 'loading',
+				delete: false
+			}
+
+			if(this.pages[device][storage].status === 'loading') {
+				this.pages[device][storage].page = await new Parser().openPage(url)
+				this.pages[device][storage].status = 'loaded'
+			}
+
+			const isPageClosed = await this.isPageClosed(device, storage)
+			if(isPageClosed) return
+
+			this.checkProduct(url, device, storage)
+		} catch (error) {
+			console.log(('Cant watch product').red)
 		}
-
-		if(this.pages[device][storage].status === 'loading') {
-			this.pages[device][storage].page = await new Parser().openPage(url)
-			this.pages[device][storage].status = 'loaded'
-		}
-
-		const isPageClosed = await this.isPageClosed(device, storage)
-		if(isPageClosed) return
-
-		this.checkProduct(url, device, storage)
 	}
 
 	async unWatch(data) {
 		const { device, storage } = data
 		if(this.pages[device]) {
 			if(this.pages[device][storage]) {
-				if(this.pages[device][storage].status === 'loading') {
+				const pageStatus = this.pages[device][storage].status
+				if(pageStatus === 'loading') {
 					this.pages[device][storage].delete = true
 				}
-				if(this.pages[device][storage].status === 'loaded') {
+				if(pageStatus === 'loaded') {
 					await this.pages[device][storage].page.close()
+					delete this.pages[device][storage]
+				}
+				if(pageStatus === 'closed') {
 					delete this.pages[device][storage]
 				}
 			}

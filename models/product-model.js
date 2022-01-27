@@ -12,9 +12,6 @@ export default postgres.define('products', {
     storage: {
         type: STRING
     },
-    watch_status: {
-        type: STRING
-    },
 }, {
     tableName: 'products',
     timestamps: false

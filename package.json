@@ -1,12 +1,12 @@
 {
-  "name": "telegram-exel-notificator",
+  "name": "samsung-notify-bot",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "type": "module",
   "scripts": {
     "start": "node runner.js",
-    "check": "node ./utils/check-products.js",
+    "recheck": "node ./utils/check-products.js",
     "dev": "nodemon --config nodemon.json"
   },
   "keywords": [],
@@ -17,9 +17,7 @@
     "axios": "^0.24.0",
     "dotenv": "^10.0.0",
     "express": "^4.17.2",
-    "node-fetch": "^3.1.0",
     "node-telegram-bot-api": "^0.56.0",
-    "node-xlsx": "^0.21.0",
     "pg": "^8.7.1",
     "pg-hstore": "^2.3.4",
     "pm2": "^5.1.2",

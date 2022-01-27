@@ -14,10 +14,10 @@ const pgSync = async (models) => {
          if(existUser.length === 0) {
             UserModel.bulkCreate(defaultUser)
          }
-         const existProducts = await ProductModel.findAll({ row: true })
-         if(existProducts.length === 0) {
-            ProductModel.bulkCreate(defaultProducts)
-         }
+         // const existProducts = await ProductModel.findAll({ row: true })
+         // if(existProducts.length === 0) {
+         //    ProductModel.bulkCreate(defaultProducts)
+         // }
       })()
       } catch (err) {
          console.log(err)

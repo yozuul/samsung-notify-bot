@@ -22,7 +22,7 @@ export class ProductService {
       })
    }
    static async deleteProduct(data) {
-      ProductModel.destroy({
+      await ProductModel.destroy({
          where: {
 				[Op.and]: [
                { device: data.device },
@@ -30,6 +30,7 @@ export class ProductService {
             ]
 			}
       })
+      return ProductService.getAllProducts()
    }
    static async addProduct(data) {
       ProductModel.create({

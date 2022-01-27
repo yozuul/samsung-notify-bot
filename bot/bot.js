@@ -23,7 +23,7 @@ export const botStart = () => {
             return
          }
          if(text === '🛒 Мои товары') {
-            menu.changeTableUrl(chat_id)
+            menu.getProductList(chat_id)
             return
          }
          if(text === '📞 Добавить номер') {
@@ -68,6 +68,19 @@ export const botStart = () => {
             console.log(error)
          }
       }
+
+      const checkProductDelete = callback.split('delete_')[1]
+      if (checkProductDelete) {
+         const productData = checkProductDelete.split('|')
+         const device = productData[0]
+         const storage = productData[1]
+         try {
+            menu.deleteProduct(device, storage, chat_id, query.message.message_id, query.id)
+         } catch (error) {
+            console.log(error)
+         }
+      }
+
       console.log(('callback:').darkGray, (callback).green)
    })
 
@@ -90,7 +103,6 @@ export const botStart = () => {
       }
       // console.log(userContact)
       const isUserExist = await UserController.findByPhone(userContact.phone_num)
-      // console.log(isUserExist)
       // console.log(userContact)
       if(isUserExist) {
          await UserController.confirmPhone(userContact)

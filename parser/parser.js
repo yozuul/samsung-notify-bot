@@ -1,12 +1,14 @@
-import { ProductController } from '../controllers/product-controller'
 import puppeteer from 'puppeteer'
 import axios from 'axios'
 
+import { ProductController } from '../controllers/product-controller'
+
 export class Parser {
 	async urlChecker(url) {
-		// const browserPage = await this.openPage(url)
-		const parsedData = await this.parseData('browserPage')
-		this.checkProduct(url, parsedData)
+		const browserPage = await this.openPage(url)
+		const parsedData = await this.parseData(browserPage)
+		await this.checkProduct(url, parsedData)
+		await browserPage.close()
 	}
 
 	async checkProduct(url, parsedData) {
@@ -34,6 +36,52 @@ export class Parser {
 	}
 
 	async parseData(page) {
+		return await page.evaluate(() => {
+			const deviceOptions = document.querySelectorAll('#device input')
+			const deviceData = []
+			for (let device of deviceOptions) {
+				const deviceName = device.getAttribute('data-englishname')
+				deviceData.push({
+					device: deviceName,
+					storage: collectStorage()
+				})
+			}
+			function collectStorage() {
+				const storageOptions = document.querySelectorAll('#storage .s-rdo-text')
+				const storageData = {}
+				for (let storage of storageOptions) {
+					storageData[storage?.innerText] = false
+				}
+				return storageData
+			}
+			return deviceData
+		})
+	}
+
+   async openPage(url) {
+      const browser = await puppeteer.launch({
+         headless: false,
+         // devtools: true,
+         defaultViewport: null,
+         args: [
+            // '--start-maximized',
+            '--disable-notifications',
+            '--window-size=1920,1020',
+            '--no-sandbox',
+         ]
+      })
+      const page = await browser.newPage()
+      const tabs = await browser.pages()
+      await tabs[0].close()
+      try {
+			await page.goto(url, { waitUntil: 'networkidle2', timeout: 120000 })
+		} catch (error) {
+			console.log('Страница закрыта')
+		}
+      return page
+   }
+
+	mockData() {
 		return [{
 				device: 'Galaxy S21 5G',
 				storage: {
@@ -65,46 +113,6 @@ export class Parser {
 				}
 			}
 		]
-		return await page.evaluate(() => {
-			const deviceOptions = document.querySelectorAll('.s-option-device input')
-			const deviceData = []
-			for (let device of deviceOptions) {
-				const deviceName = device.getAttribute('data-englishname')
-				deviceData.push({
-					device: deviceName,
-					storage: collectStorage()
-				})
-			}
-			function collectStorage() {
-				const storageOptions = document.querySelectorAll('.s-option-storage .s-rdo-text')
-				const storageData = {}
-				for (let storage of storageOptions) {
-					storageData[storage?.innerText] = false
-				}
-				return storageData
-			}
-			return deviceData
-		})
 	}
-
-   async openPage(url) {
-      const browser = await puppeteer.launch({
-         // headless: true,
-         devtools: true,
-         defaultViewport: null,
-         args: [
-            // '--start-maximized',
-            '--disable-notifications',
-            '--window-size=1920,1020',
-            '--no-sandbox',
-         ]
-      })
-      const page = await browser.newPage()
-      const tabs = await browser.pages()
-      await tabs[0].close()
-      await page.goto(url, { waitUntil: 'networkidle2', timeout: 0 })
-      // await page.waitForTimeout(2000)
-      return page
-   }
 }
 

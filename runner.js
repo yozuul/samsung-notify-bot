@@ -1,12 +1,12 @@
 import pm2 from'pm2'
 
 const appData = [
-  //  {
-  //     cwd: './',
-  //     name: 'telegram-bot',
-  //     script: 'server.js',
-  //     node_args: '-r dotenv/config --es-module-specifier-resolution=node',
-  //  },
+   {
+      cwd: './',
+      name: 'telegram-bot',
+      script: 'server.js',
+      node_args: '-r dotenv/config --es-module-specifier-resolution=node',
+   },
    {
       name: 'check-products',
       script: './utils/check-products.js',
