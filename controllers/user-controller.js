@@ -15,13 +15,6 @@ export class UserController {
             console.log(err)
         }
     }
-    static async getAdmins() {
-        try {
-            return UserService.getAdmins()
-        } catch (err) {
-            console.log(err)
-        }
-    }
     static async findByTgId(tg_id) {
         try {
             return UserService.findByTgId(tg_id)

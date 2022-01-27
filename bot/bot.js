@@ -12,7 +12,6 @@ export const botStart = () => {
    bot.on('message', async (msg) => {
       const text = msg.text || 'default'
       const chat_id = msg.chat.id
-      console.log(chat_id)
       const checkAuth = await UserController.findByTgId(chat_id)
       if(!checkAuth) {
          menu.unAuthorizedUser(chat_id)
@@ -52,7 +51,6 @@ export const botStart = () => {
       const { message_id } = query.message
       if (callback.split('+7')[1]) {
          const phoneNum = callback.split('/')[0]
-         console.log(phoneNum)
          try {
             menu.deletePhone(chat_id, phoneNum, message_id)
          } catch (error) {
@@ -65,7 +63,7 @@ export const botStart = () => {
          const device = productData[0]
          const storage = productData[1]
          try {
-            menu.toggleProduct(device, storage, chat_id, query.message.message_id)
+            menu.toggleProduct(device, storage, chat_id, query.message.message_id, query.id)
          } catch (error) {
             console.log(error)
          }

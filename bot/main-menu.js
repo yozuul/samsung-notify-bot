@@ -1,3 +1,4 @@
+import axios from 'axios'
 import { UserController, ProductController } from '../controllers'
 import { Parser } from '../parser/parser'
 
@@ -8,13 +9,16 @@ export class MainMenu {
    }
 
    async sendNotify(data) {
-      const authUsers = await UserController.getAuthUsers()
-      const message = data.text
+      const authUsers = await UserController.getAllUsers()
+      const message = `ПОСТУПЛЕНИЕ ТОВАРА:\n${data.url}\nМодель: ${data.device}\nПамять: ${data.storage}\nРасцветки:\n${data.colors}`
       for (let user of authUsers) {
          try {
-            await this.bot.sendMessage(user.tg_id, message, { parse_mode: 'HTML' })
+            await this.bot.sendMessage(user.tg_id, message, {
+               parse_mode: 'HTML', disable_web_page_preview: true
+            })
          } catch (error) {
             console.log(error)
+            console.log('ERROR SEND NOTIFY ^')
          }
       }
    }
@@ -33,8 +37,7 @@ export class MainMenu {
             const msg = await this.bot.sendMessage(tgID, prodTitle, {
                reply_markup: JSON.stringify({
                   inline_keyboard: this.prepareProductsKeyboard(deviceName, product.storage)
-               }),
-               parse_mode: 'HTML'
+               }), parse_mode: 'HTML'
             })
             this.user[tgID].menu[msg.message_id] = {
                device: deviceName,
@@ -74,48 +77,62 @@ export class MainMenu {
       return storageKeyboard
    }
 
-   async toggleProduct(device, storage, chat_id, message_id) {
+   checkMessageExist(chat_id, query_id, message_id) {
+      if(this.user[chat_id]) {
+         if(!this.user[chat_id].menu[message_id]) {
+            this.bot.answerCallbackQuery(query_id, { text: 'Сообщение устарело' })
+            return false
+         }
+      }
+      return true
+   }
+
+   async toggleProduct(device, storage, chat_id, message_id, query_id) {
+      if(!this.checkMessageExist(chat_id, query_id, message_id)) return
       let menuItemIndex = 0
       const allMenuData = this.user[chat_id].menu[message_id].state
-
+      const data = {
+         url: this.user[chat_id].menu[message_id].url,
+         device: device,
+         storage: storage
+      }
       for (const [index, item] of allMenuData.entries()) {
          if(item.device === device) menuItemIndex = index
       }
 
       if(this.user[chat_id].menu[message_id].state[menuItemIndex].storage[storage]) {
          this.user[chat_id].menu[message_id].state[menuItemIndex].storage[storage] = false
-         ProductController.deleteProduct({
-            device: device,
-            storage: storage
-         })
+         ProductController.deleteProduct(data)
+         axios.post('http://localhost:3000/unWatchProduct', data)
       } else {
          this.user[chat_id].menu[message_id].state[menuItemIndex].storage[storage] = true
-         ProductController.addProduct({
-            url: this.user[chat_id].menu[message_id].url,
-            device: device,
-            storage: storage
-         })
+         ProductController.addProduct(data)
+         this.bot.answerCallbackQuery(query_id, { text: 'Запуск парсера' })
+         axios.post('http://localhost:3000/watchProduct', data)
       }
-      await this.bot.editMessageText(this.user[chat_id].menu[message_id].title, {
-         chat_id: chat_id,
-         message_id: message_id,
-         reply_markup: JSON.stringify({
-            inline_keyboard: this.prepareProductsKeyboard(
-               device, this.user[chat_id].menu[message_id].state[menuItemIndex].storage
-            )
-         }), parse_mode: 'HTML'
-      })
-      return
+      try {
+         await this.bot.editMessageText(this.user[chat_id].menu[message_id].title, {
+            chat_id: chat_id,
+            message_id: message_id,
+            reply_markup: JSON.stringify({
+               inline_keyboard: this.prepareProductsKeyboard(
+                  device, this.user[chat_id].menu[message_id].state[menuItemIndex].storage
+               )
+            }), parse_mode: 'HTML'
+         })
+         return
+      } catch (error) {
+         console.log(error)
+         console.log('MAIN MENU ERR ^')
+      }
    }
 
    async addNewPhone(chat_id) {
       await this.checkInit(chat_id)
-      const title = 'Для удаления привязанного телефона, нажмите на соотвествующую кнопку с его номером.\nДля добавления нового, отправьте его номер в чат в формате: \n+7xxxxxxxxxx/Группа/Фамилия Имя'
-      const users = await UserController.getAllUsers()
-      this.existPhonesKeyboard(users)
+      const title = 'Для удаления привязанного телефона, нажмите на соотвествующую кнопку с его номером.\nДля добавления нового, отправьте его номер в чат в формате: \n+7xxxxxxxxxx'
       await this.bot.sendMessage(chat_id, title, {
          reply_markup: JSON.stringify({
-            inline_keyboard: this.existPhonesKeyboard(users)
+            inline_keyboard: await this.existPhonesKeyboard()
          })
       })
       this.user[chat_id].currentPath = 'addNewPhone'
@@ -123,41 +140,24 @@ export class MainMenu {
 
    async deletePhone(chat_id, phone_num, message_id) {
       await UserController.deletePhone(phone_num)
-      const users = await UserController.getAllUsers()
       this.bot.editMessageText(`Пользователь с номером ${phone_num} успешно удалён`, {
          chat_id: chat_id,
          message_id: message_id,
          reply_markup: JSON.stringify({
-            inline_keyboard: this.existPhonesKeyboard(users)
+            inline_keyboard: await this.existPhonesKeyboard()
          })
       })
    }
 
-   async checkAddNewPhone(chat_id, userData) {
+   async checkAddNewPhone(chat_id, phone_num) {
       await this.checkInit(chat_id)
       if(this.user[chat_id].currentPath === 'addNewPhone') {
-         const checkCorrectData = userData.split('/')
-         const user = {
-            phone: checkCorrectData[0],
-            group: checkCorrectData[1],
-            name: checkCorrectData[2],
-         }
-         const checkCorrectPhone = parseInt(user.phone)
-         console.log(checkCorrectPhone)
+         const checkCorrectPhone = parseInt(phone_num)
          if(checkCorrectPhone.toString().length !== 11) {
             await this.bot.sendMessage(chat_id, 'Номер указан не верно')
             return
          }
-         if(!user.group) {
-            await this.bot.sendMessage(chat_id, 'Укажите группу')
-            return
-         }
-         if(!user.name) {
-            await this.bot.sendMessage(chat_id, 'Укажите Фамилию Имя')
-            return
-         }
-         // console.log(user)
-         const saveData = await UserController.saveNewPhone(user)
+         const saveData = await UserController.saveNewPhone(phone_num)
          await this.bot.sendMessage(chat_id, saveData.text)
       }
    }
@@ -210,15 +210,15 @@ export class MainMenu {
       })
    }
 
-   existPhonesKeyboard(users) {
+   async existPhonesKeyboard() {
+      const users = await UserController.getAllUsers()
       const phonesKeyboard = []
       let keyboardRow = []
       for(let user of users) {
-         const userGroup = user.role_id === 2 ? 'Директор' : 'РП'
-         const btnText = `${user.phone_num}/${userGroup}/${user.name}`
+         const { phone_num } = user
          keyboardRow.push({
-            text: `${user.phone_num} / ${userGroup} / ${user.name} ❌`,
-            callback_data: btnText,
+            text: `${phone_num} ❌`,
+            callback_data: phone_num,
          })
          if(keyboardRow.length === 1) {
             phonesKeyboard.push(keyboardRow)

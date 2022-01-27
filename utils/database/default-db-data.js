@@ -11,17 +11,20 @@ const defaultProducts = [
    {
       url: 'https://www.samsung.com/ru/smartphones/galaxy-s21-5g/buy/',
       device: 'Galaxy S21 5G',
-      storage: '256ГБ / 8ГБ ОЗУ'
+      storage: '256ГБ / 8ГБ ОЗУ',
+      watch_status: 'pause'
    },
    {
       url: 'https://www.samsung.com/ru/smartphones/galaxy-s21-5g/buy/',
       device: 'Galaxy S21 5G',
-      storage: '128ГБ / 8 ГБ ОЗУ'
+      storage: '128ГБ / 8 ГБ ОЗУ',
+      watch_status: 'off'
    },
    {
       url: 'https://www.samsung.com/ru/smartphones/galaxy-s21-5g/buy/',
       device: 'Galaxy S21+ 5G',
-      storage: '512ГБ / 16ГБ ОЗУ'
+      storage: '512ГБ / 16ГБ ОЗУ',
+      watch_status: 'off'
    },
 ]
 

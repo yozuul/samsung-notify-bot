@@ -4,9 +4,11 @@ import { darkGray, red } from 'ansicolor'
 
 import { botStart } from './bot'
 import { Parser } from './parser/parser'
+import { ProductWatcher } from './parser/watcher'
 
 const PORT = process.env.API_PORT
 const botCommand = await botStart()
+const watcher = new ProductWatcher()
 
 const startServer = async () => {
    const app = express()
@@ -19,6 +21,21 @@ const startServer = async () => {
       })
       app.post('/sendProducts', (req, res, next) => {
          botCommand.sendProducts(req.body)
+         res.send('OK')
+         next()
+      })
+      app.post('/watchProduct', async (req, res, next) => {
+         await watcher.watch(req.body)
+         res.send('OK')
+         next()
+      })
+      app.post('/unWatchProduct', async (req, res, next) => {
+         await watcher.unWatch(req.body)
+         res.send('OK')
+         next()
+      })
+      app.get('/reCheckProducts', async (req, res, next) => {
+         await watcher.reCheckProducts(req.body)
          res.send('OK')
          next()
       })

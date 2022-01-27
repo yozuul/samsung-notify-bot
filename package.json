@@ -5,7 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node runner js",
+    "start": "node runner.js",
+    "check": "node ./utils/check-products.js",
     "dev": "nodemon --config nodemon.json"
   },
   "keywords": [],

@@ -3,39 +3,40 @@ import { Op } from '../utils'
 
 export class UserService {
    static async getAllUsers() {
-      return UserModel.findAll({ where: { role_id: { [Op.ne]: 1 }}})
-   }
-   static async getAdmins() {
-      return UserModel.findAll({
-         where: { role_id: 1 }
-      })
+         return UserModel.findAll({
+            where: {
+               [Op.and]: [
+                  { tg_id: {[Op.ne]: null }}
+               ]
+            }
+         })
    }
    static async getAuthUsers() {
       return UserModel.findAll({
          where: {
             [Op.and]: [
                { tg_id: {[Op.ne]: null }},
-               { role_id: { [Op.or]: [1, 2, 3] }}
+               { role_id: 2 }
             ]
          }
       })
    }
-   static async saveNewPhone(user) {
+   static async saveNewPhone(phone_num) {
       let data = {
          result: true,
          text: '🔔\nНомер успешно добавлен. \nТеперь пользователь может авторизоваться в боте.'
       }
       const findUser = await UserModel.findOne({
-         where: { phone_num: user.phone }
+         where: { phone_num: phone_num }
       })
       if(findUser) {
          data.result = false
          data.text = 'Указанный номер уже привязан.'
       } else {
          UserModel.create({
-            name: user.name,
-            role_id: user.group === 'Директор' ? 2 : 3,
-            phone_num: user.phone
+            name: 'User',
+            role_id: 2,
+            phone_num: phone_num
          })
       }
       return data

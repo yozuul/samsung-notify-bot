@@ -102,8 +102,8 @@ export class Parser {
       const page = await browser.newPage()
       const tabs = await browser.pages()
       await tabs[0].close()
-      await page.goto(url, { waitUntil: 'networkidle2' })
-      await page.waitForTimeout(2000)
+      await page.goto(url, { waitUntil: 'networkidle2', timeout: 0 })
+      // await page.waitForTimeout(2000)
       return page
    }
 }
