@@ -13,10 +13,13 @@ export class MainMenu {
    }
 
    async searchProducts(chat_id, url) {
+      let url2check = url
+      const isUrlModel = url.split('?modelCode')
+      isUrlModel[1] ? url2check = isUrlModel[0] : ''
       this.bot.sendMessage(chat_id, 'Поиск товаров по указанной ссылке')
       await this.checkUserExist(chat_id)
       this.user[chat_id].parseProduct = true
-      await parser.urlChecker(url)
+      await parser.urlChecker(url2check)
    }
    async getProductList(chat_id) {
       await this.checkInit(chat_id)
@@ -58,9 +61,7 @@ export class MainMenu {
       })
    }
 
-   async sendProducts(data) {
-      let tgID = 11111111
-      console.log(this.user)
+   async sendProducts(data, tgID) {
       for (let user in this.user) {
          if(this.user[user].parseProduct) {
             this.user[user].parseProduct = false

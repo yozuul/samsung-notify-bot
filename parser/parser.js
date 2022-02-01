@@ -5,10 +5,10 @@ import { ProductController } from '../controllers/product-controller'
 
 export class Parser {
 	async urlChecker(url) {
-		const browserPage = await this.openPage(url)
-		const parsedData = await this.parseData(browserPage)
+		const { page, browser } = await this.openPage(url)
+		const parsedData = await this.parseData(page)
 		await this.checkProduct(url, parsedData)
-		await browserPage.close()
+		await browser.close()
 	}
 
 	async checkProduct(url, parsedData) {
@@ -61,7 +61,7 @@ export class Parser {
    async openPage(url) {
       const browser = await puppeteer.launch({
          headless: false,
-         // devtools: true,
+         devtools: true,
          defaultViewport: null,
          args: [
             // '--start-maximized',
@@ -78,7 +78,10 @@ export class Parser {
 		} catch (error) {
 			console.log('Страница закрыта')
 		}
-      return page
+      return {
+			page: page,
+			browser: browser
+		}
    }
 
 	mockData() {

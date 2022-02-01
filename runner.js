@@ -1,18 +1,18 @@
 import pm2 from'pm2'
 
 const appData = [
-   {
-      cwd: './',
-      name: 'telegram-bot',
-      script: 'server.js',
-      node_args: '-r dotenv/config --es-module-specifier-resolution=node',
-   },
+  //  {
+  //     cwd: './',
+  //     name: 'telegram-bot',
+  //     script: 'server.js',
+  //     node_args: '-r dotenv/config --es-module-specifier-resolution=node',
+  //  },
    {
       name: 'check-products',
       script: './utils/check-products.js',
       node_args: '-r dotenv/config --es-module-specifier-resolution=node',
       // cron_restart: '30 12 * * 1-5',
-      cron_restart: '*/1 * * * *',
+      cron_restart: '*/5 * * * *',
    }
 ]
 pm2.connect((err) => {

@@ -23,7 +23,9 @@ export class ProductWatcher {
 			if(!this.pages[device]) this.pages[device] = {}
 			if(!this.pages[device][storage]) this.pages[device][storage] = {}
 			this.pages[device][storage].status === 'loading'
-			this.pages[device][storage].page = await new Parser().openPage(url)
+			const { page, browser } = await new Parser().openPage(url)
+			this.pages[device][storage].page = page
+			this.pages[device][storage].browser = browser
 			this.pages[device][storage].status = 'loaded'
 			this.checkProduct(url, device, storage)
 		}
@@ -48,7 +50,8 @@ export class ProductWatcher {
 				if(inputStorage.innerText === storage) inputStorage.classList.add('storageFounded')
 			}
 			const checkPrice = document.querySelector('.storageFounded + .s-rdo-price')
-			// console.log(checkPrice)
+			console.log(checkPrice)
+			console.log(checkPrice.innerHTML)
 			if(checkPrice.innerText) {
 				hasAttributeFlag = true
 				const activeInput = document.querySelector('.storageFounded')
@@ -93,7 +96,7 @@ export class ProductWatcher {
 		// Клик по инпуту STORAGE
 		try {
 			const closePage = async () => {
-				await page.waitForTimeout(10000)
+				await page.waitForTimeout(30000)
 				await page.close()
 				this.pages[device][storage].status = 'closed'
 				this.pages[device][storage].page = false
@@ -141,7 +144,9 @@ export class ProductWatcher {
 			}
 
 			if(this.pages[device][storage].status === 'loading') {
-				this.pages[device][storage].page = await new Parser().openPage(url)
+				const { page, browser } = await new Parser().openPage(url)
+				this.pages[device][storage].page = page
+				this.pages[device][storage].browser = browser
 				this.pages[device][storage].status = 'loaded'
 			}
 
@@ -163,7 +168,8 @@ export class ProductWatcher {
 					this.pages[device][storage].delete = true
 				}
 				if(pageStatus === 'loaded') {
-					await this.pages[device][storage].page.close()
+					await this.pages[device][storage].browser.close()
+					await this.pages[device][storage].browser.close()
 					delete this.pages[device][storage]
 				}
 				if(pageStatus === 'closed') {
@@ -175,7 +181,7 @@ export class ProductWatcher {
 
 	async isPageClosed(device, storage) {
 		if(this.pages[device][storage].delete) {
-			await this.pages[device][storage].page.close()
+			await this.pages[device][storage].browser.close()
 			delete this.pages[device][storage]
 			return true
 		} else {
